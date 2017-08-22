@@ -37,7 +37,7 @@ let Item = mongoose.model('Item', {
     trim: true
   },
   valor_total: {
-    type: Number,    
+    type: Number,
     trim: true
   },
 });

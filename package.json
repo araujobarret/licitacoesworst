@@ -1,0 +1,27 @@
+{
+  "name": "licitacoesworst",
+  "version": "1.0.0",
+  "description": "API for retriving of data from compras.dados.gov.br and classify it. The first approach will be with eletronic boughts of computers and notebooks",
+  "main": "index.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/araujobarret/licitacoesworst.git"
+  },
+  "author": "Carlos Alberto de Araujo Barreto",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/araujobarret/licitacoesworst/issues"
+  },
+  "homepage": "https://github.com/araujobarret/licitacoesworst#readme",
+  "dependencies": {
+    "express": "^4.15.4",
+    "lodash": "^4.17.4",
+    "mongodb": "^2.2.31",
+    "mongoose": "^4.11.7",
+    "request": "^2.81.0"
+  }
+}

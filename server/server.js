@@ -23,10 +23,21 @@ app.post('/get_items', (req, res) => {
 
   let licitacoes = new Array();
 
-  axios.get(licitacoesPorCategoriaURI).then((responseLicitacoes) => {
-    return new Promise((resolve, reject) => resolve(responseLicitacoes));
-  }).then((responseLicitacoesItens) => res.send(responseLicitacoesItens.data._embedded))
-  .catch((e) => console.log(e));
+  axios.get(licitacoesPorCategoriaURI).then((response) => {
+    return new Promise((resolve, reject) => resolve(response));
+  }).then((responseLicitacoes) => {
+    let completed = 0;
+    for(i = 0; i < responseLicitacoes.data._embedded.licitacoes.length; i++){
+      if(responseLicitacoes.data._embedded.licitacoes[i]._links.pregoes != null) {
+        licitacoes[i] = {
+          codigo_categoria: codigo_item_material,
+          licitacao: responseLicitacoes.data._embedded.licitacoes[i]._links.self.href,
+          pregao:    responseLicitacoes.data._embedded.licitacoes[i]._links.pregoes.href
+        };
+      }
+    }
+    res.send(licitacoes);
+  }).catch((e) => console.log(e));
 
   // request({ url: licitacoesPorCategoriaURI, json: true}, (error, response, body) => {
   //   if(error)
@@ -71,7 +82,7 @@ app.post('/get_items', (req, res) => {
       //   else {
       //     res.status(400).send();
       //   }
-      // });      
+      // });
   //   }
   // });
 

@@ -23,21 +23,45 @@ app.post('/get_items', (req, res) => {
 
   let licitacoes = new Array();
 
-  request({ url: licitacoesPorCategoriaURI, json: true}, (error, response, body) => {
-    if(error)
-      console.log(error);
-    else {
-      let i = 0;
-      let completed = 0;
-      for(i = 0; i < body._embedded.licitacoes.length; i++){
-        if(body._embedded.licitacoes[i]._links.pregoes != null) {
-          licitacoes[i] = {
-            codigo_categoria: codigo_item_material,
-            licitacao: body._embedded.licitacoes[i]._links.self.href,
-            pregao:    body._embedded.licitacoes[i]._links.pregoes.href
-          };
-        }
-      }
+  axios.get(licitacoesPorCategoriaURI).then((responseLicitacoes) => {
+    return new Promise((resolve, reject) => resolve(responseLicitacoes));
+  }).then((responseLicitacoesItens) => res.send(responseLicitacoesItens.data._embedded))
+  .catch((e) => console.log(e));
+
+  // request({ url: licitacoesPorCategoriaURI, json: true}, (error, response, body) => {
+  //   if(error)
+  //     console.log(error);
+  //   else {
+  //     let i = 0;
+  //     let completed = 0;
+  //     for(i = 0; i < body._embedded.licitacoes.length; i++){
+  //       if(body._embedded.licitacoes[i]._links.pregoes != null) {
+  //         licitacoes[i] = {
+  //           codigo_categoria: codigo_item_material,
+  //           licitacao: body._embedded.licitacoes[i]._links.self.href,
+  //           pregao:    body._embedded.licitacoes[i]._links.pregoes.href
+  //         };
+  //       }
+  //     }
+
+  //     for(let lic of licitacoes) {
+  //       setTimeout(() => {
+  //         request({url: SERVER + lic.licitacao + '/itens.json', json: true}, (error,response, body) => {
+  //           console.log(lic);
+  //           if(!error){
+  //             if(body.codigo_item_material === codigo_item_material)
+  //               licitacoes[Object.keys(licitacoes).indexOf(licitacao)]['numero_item_licitacao'] = licitacao.numero_item_licitacao;
+  //           }
+  //           else {
+  //             res.status(400).send();
+  //           }
+  //           completed++;
+  //           if(completed === licitacoes.length)
+  //             res.send(licitacoes);
+
+  //         });
+  //       }, 1000);
+  //     }
 
       // request({url: SERVER + licitacoes[0].licitacao + '/itens.json', json: true}, (error, response, body) => {
       //   if(!error){
@@ -47,30 +71,9 @@ app.post('/get_items', (req, res) => {
       //   else {
       //     res.status(400).send();
       //   }
-      // });
-
-      for(let lic in licitacoes) {
-        setTimeout(() => {
-          request({url: SERVER + lic.licitacao + '/itens.json', json: true}, (error,response, body) => {
-            console.log(lic);
-            if(!error){
-              if(body.codigo_item_material === codigo_item_material)
-                licitacoes[Object.keys(licitacoes).indexOf(licitacao)]['numero_item_licitacao'] = licitacao.numero_item_licitacao;
-            }
-            else {
-              res.status(400).send();
-            }
-            completed++;
-            if(completed === licitacoes.length)
-              res.send(licitacoes);
-
-          });
-        }, 1000);
-      }
-
-
-    }
-  });
+      // });      
+  //   }
+  // });
 
 });
 

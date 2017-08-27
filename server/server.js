@@ -2,10 +2,7 @@ const axios = require('axios');
 const request = require('request');
 const express = require('express');
 const bodyParser = require('body-parser');
-const {ObjectID} = require('mongodb');
-
-let {mongoose} = require('./db/mongoose');
-let {Item} = require('./models/item');
+const fs = require('fs');
 
 let app = express();
 const port = process.env.PORT || 3000;
@@ -14,77 +11,187 @@ const SERVER = 'http://compras.dados.gov.br:8080';
 const DATA_EDITAL_MIN = '2016-01-01T00:00:00';
 const DATA_EDITAL_MAX = '2016-12-31T23:59:59';
 
+let licitacoesPorCategoriaURI;
+let codigo_item_material;
+
 app.use(bodyParser.json());
 
-app.post('/get_items', (req, res) => {
-	let codigo_item_material =  req.body.codigo_item_material;
-  let licitacoesPorCategoriaURI = SERVER + '/licitacoes/v1/licitacoes.json?data_entrega_edital_min=' + DATA_EDITAL_MIN + '&data_entrega_edital_max=' +
-    DATA_EDITAL_MAX + '&item_material=' + codigo_item_material;
+let getLicitacoes = () => {
+  let licitacoes = new Array();      
 
-  let licitacoes = new Array();
-
-  axios.get(licitacoesPorCategoriaURI).then((response) => {
-    return new Promise((resolve, reject) => resolve(response));
-  }).then((responseLicitacoes) => {
-    let completed = 0;
-    for(i = 0; i < responseLicitacoes.data._embedded.licitacoes.length; i++){
-      if(responseLicitacoes.data._embedded.licitacoes[i]._links.pregoes != null) {
-        licitacoes[i] = {
-          codigo_categoria: codigo_item_material,
-          licitacao: responseLicitacoes.data._embedded.licitacoes[i]._links.self.href,
-          pregao:    responseLicitacoes.data._embedded.licitacoes[i]._links.pregoes.href
-        };
-      }
+  return new Promise((resolve, reject) => {
+    if(fs.existsSync('licitacoes-data-' + codigo_item_material + '.json')) {
+      licitacoes = JSON.parse(fs.readFileSync('licitacoes-data-' + codigo_item_material + '.json'));    
+      resolve(licitacoes);
     }
-    res.send(licitacoes);
-  }).catch((e) => console.log(e));
+    else{
+      axios.get(licitacoesPorCategoriaURI).then((response) => {    
+        return new Promise((res, rej) => res(response));
+      }).then((responseLicitacoes) => {                        
+        for(i = 0; i < responseLicitacoes.data._embedded.licitacoes.length; i++){
+          if(responseLicitacoes.data._embedded.licitacoes[i]._links.pregoes != null && responseLicitacoes.data._embedded.licitacoes[i]._links.self != null) {
+            licitacoes.push({
+              identificador: responseLicitacoes.data._embedded.licitacoes[i].identificador,
+              codigo_item_material: codigo_item_material,
+              licitacao_itens: SERVER + responseLicitacoes.data._embedded.licitacoes[i]._links.self.href + '/itens.json',
+              pregao_itens:    SERVER + responseLicitacoes.data._embedded.licitacoes[i]._links.pregoes.href + '/itens.json'
+            });
+          }
+        }
 
-  // request({ url: licitacoesPorCategoriaURI, json: true}, (error, response, body) => {
-  //   if(error)
-  //     console.log(error);
-  //   else {
-  //     let i = 0;
-  //     let completed = 0;
-  //     for(i = 0; i < body._embedded.licitacoes.length; i++){
-  //       if(body._embedded.licitacoes[i]._links.pregoes != null) {
-  //         licitacoes[i] = {
-  //           codigo_categoria: codigo_item_material,
-  //           licitacao: body._embedded.licitacoes[i]._links.self.href,
-  //           pregao:    body._embedded.licitacoes[i]._links.pregoes.href
-  //         };
-  //       }
-  //     }
+        // Remove elementos duplicados        
+        let flag;
+        let newLicitacoes = new Array();
+        for(let i = 0; i < licitacoes.length; i++){
+          flag = false;
+          for(let j = i+1; j < licitacoes.length; j++)
+            if(licitacoes[i].licitacao_itens == licitacoes[j].licitacao_itens){              
+              flag = true;
+              break;
+            }
+            
+          if(!flag)
+            newLicitacoes.push(licitacoes[i]);
+        }        
+        
+        fs.writeFileSync('licitacoes-data-' + codigo_item_material + '.json', JSON.stringify(newLicitacoes));
+        resolve(newLicitacoes);
+      }).catch((e) => reject(e));
+    }
+  });
+};
 
-  //     for(let lic of licitacoes) {
-  //       setTimeout(() => {
-  //         request({url: SERVER + lic.licitacao + '/itens.json', json: true}, (error,response, body) => {
-  //           console.log(lic);
-  //           if(!error){
-  //             if(body.codigo_item_material === codigo_item_material)
-  //               licitacoes[Object.keys(licitacoes).indexOf(licitacao)]['numero_item_licitacao'] = licitacao.numero_item_licitacao;
-  //           }
-  //           else {
-  //             res.status(400).send();
-  //           }
-  //           completed++;
-  //           if(completed === licitacoes.length)
-  //             res.send(licitacoes);
+let getItensLicitacoes = (licitacoes) => {
+  return new Promise((resolve, reject) => {
+    let arr = new Array();
+    let temp;
+    let newLicitacoes = new Array(); 
+    let i = 0;
 
-  //         });
-  //       }, 1000);
-  //     }
+    if(fs.existsSync('licitacoes-itens-data-' + codigo_item_material + '.json')) {
+      newLicitacoes = JSON.parse(fs.readFileSync('licitacoes-itens-data-' + codigo_item_material + '.json'));    
+      resolve(newLicitacoes);
+    }
+    else {
+      for(item of licitacoes){
+        arr.push(axios.get(item.licitacao_itens));
+        // i++;
+        // if(i >= 10)
+        //   break;
+      }
+      
+      axios.all(arr).then(axios.spread((...item) => {            
+        for(let itemData of item){
+          for(let itemLicitacao of itemData.data._embedded.itensLicitacao){            
+            if(codigo_item_material == itemLicitacao.codigo_item_material){              
+              newLicitacoes.push(itemLicitacao);              
+              break;
+            }          
+          }
+        }
+        fs.writeFileSync('licitacoes-itens-data-' + codigo_item_material + '.json', JSON.stringify(newLicitacoes));
+        resolve(newLicitacoes);
+      }));    
+    }
+  });
+};
 
-      // request({url: SERVER + licitacoes[0].licitacao + '/itens.json', json: true}, (error, response, body) => {
-      //   if(!error){
-      //     console.log(SERVER + licitacoes[0].licitacao + '/itens.json');
-      //     console.log(body);
-      //   }
-      //   else {
-      //     res.status(400).send();
-      //   }
-      // });
-  //   }
-  // });
+let getItensPregoes = (licitacoes) => {
+  return new Promise((resolve, reject) => {
+    let i = 0;
+    let itens = new Array();
+    let arr = new Array();
+    if(fs.existsSync('pregoes-itens-data-' + codigo_item_material + '.json')) {
+      itens = JSON.parse(fs.readFileSync('pregoes-itens-data-' + codigo_item_material + '.json'));    
+      resolve(itens);
+    }
+    else {
+      for(let item of licitacoes){
+        arr.push(axios.get(item.pregao_itens));
+        // i++;
+        // if(i >= 10)
+        //   break;
+      }
+      axios.all(arr).then(axios.spread((...item) => {
+        for(let itemData of item){
+          itens.push(itemData.data._embedded.pregoes);
+          // for(let itemPregao of itemData.data._embedded.pregoes){ 
+          //   console.log(itemPregao);
+          // }
+        }
+        fs.writeFileSync('pregoes-itens-data-' + codigo_item_material + '.json', JSON.stringify(itens));
+        resolve(itens);
+      })).catch((e) => reject(e));
+    }
+  });
+};
+
+let consolidaItens = () => {
+  return new Promise((resolve, reject) => {
+    let itens = new Array();
+    let itensFiltered = new Array();
+    let itensHomologados = new Array();
+    let txtlicitacoes = fs.readFileSync('licitacoes-data-' + codigo_item_material + '.json', 'utf8');
+    let txtitensLicitacoes = fs.readFileSync('licitacoes-itens-data-' + codigo_item_material + '.json', 'utf8');;
+    let txtitensPregoes = fs.readFileSync('pregoes-itens-data-' + codigo_item_material + '.json', 'utf8');
+
+    let jLicitacoes = JSON.parse(txtlicitacoes);
+    let jItensLicitacoes = JSON.parse(txtitensLicitacoes);
+    let jItensPregoes = JSON.parse(txtitensPregoes);
+    
+    if(jLicitacoes.length == jItensLicitacoes.length && jItensLicitacoes.length == jItensPregoes.length){
+      for(let i = 0; i < jLicitacoes.length; i++){
+        if(jLicitacoes[i] != null && jItensLicitacoes[i] != null && jItensPregoes[i] != null){
+          itens.push(jLicitacoes[i]);
+          
+          // Percorre os itens das licitações para pegar o número do item          
+          if(jLicitacoes[i].codigo_item_material == jItensLicitacoes[i].codigo_item_material){
+            itens[i]['numero_item_licitacao'] = jItensLicitacoes[i].numero_item_licitacao;                                    
+            
+            // Verifica se o objeto foi homologado e pega os valores relevantes à tarefa
+            if(jItensPregoes[i][itens[i].numero_item_licitacao-1] != null) {                            
+              if(jItensPregoes[i][itens[i].numero_item_licitacao-1].situacao_item == "homologado"){
+                itens[i]['descricao_detalhada'] = jItensPregoes[i][itens[i].numero_item_licitacao-1].descricao_detalhada_item;
+                itens[i]['quantidade'] = jItensPregoes[i][itens[i].numero_item_licitacao-1].quantidade_item;
+                itens[i]['valor_unitario'] = jItensPregoes[i][itens[i].numero_item_licitacao-1].menor_lance;
+                itens[i]['valor_total'] = itens[i]['quantidade'] * itens[i]['valor_unitario'];                
+              }
+            }
+          }          
+        }
+        else
+          console.log('Item nulo: ', i);
+      }
+
+      for(let obj of itens)
+        if(obj.quantidade != null)
+          itensFiltered.push(obj);
+      resolve(itensFiltered);
+    }
+    else
+      resolve('Dados incosistentes');
+  });
+};
+
+app.get('/get_items/:codigo_item_material', (req, res) => {
+  let completed = 0;
+  let licitacoes;
+  codigo_item_material = req.params.codigo_item_material;	
+  licitacoesPorCategoriaURI = SERVER + '/licitacoes/v1/licitacoes.json?data_entrega_edital_min=' + DATA_EDITAL_MIN + '&data_entrega_edital_max=' +
+    DATA_EDITAL_MAX + '&item_material=' + codigo_item_material;
+  
+  getLicitacoes()
+    .then((dados) => {      
+      licitacoes = dados;              
+      return getItensLicitacoes(licitacoes);
+    }).then((data) => {
+      //res.send(data);
+      return getItensPregoes(licitacoes);
+    }).then((data) => {  
+      return consolidaItens();
+    }).then((data) => {
+      res.send(data);
+    }).catch((e) => console.log(e));      
 
 });
 

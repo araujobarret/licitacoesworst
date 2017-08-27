@@ -126,6 +126,7 @@ let getItensPregoes = (licitacoes) => {
   });
 };
 
+// Reúne as informações dos 3 arquivos e apresenta-as de maneira consolidade
 let consolidaItens = () => {
   return new Promise((resolve, reject) => {
     let itens = new Array();

@@ -207,10 +207,32 @@ app.get('/get_items/:codigo_item_material', (req, res) => {
 app.get('/create_test/:codigo_item_material', (req, res) => {
   codigo_item_material = req.params.codigo_item_material;
   let tests = new Array();
+  let texto;
   let itens = JSON.parse(fs.readFileSync('consolidado-' + codigo_item_material + '.json'));
-  for(let i = 0; i < 20; i++)
+  let reg = /[13]{0,1}[86421][\s]{0,1}[g][^h][b]{0,1}/;
+  let regExtras = /:| de| do/;
+  let matches = [];
+  for(let i = 0; i < 40; i++){
+    texto = itens[i].descricao_detalhada.toLowerCase();
+    // console.log(texto.replace(/ de| do|:/, ''));
     tests.push(itens[i].descricao_detalhada.toLowerCase());
+    matches[i] = itens[i].descricao_detalhada.toLowerCase().match(reg);
 
+    // Filtra se o valor obtido é de um SSD
+    // Mas antes deve-se implementar a rotina caso pegue mais de um valor para percorrer os valores e verificar quais
+    // correspondem à memória principal
+    if(matches[i] != null){
+      let temp = matches[i][0] + ' solid state drive';
+      console.log(texto);
+      if(texto.search(temp) == -1){ //texto.search(matches[i][0] + ' ssd') == -1 &&
+        console.log(matches[i][0] + ' :Não é SSD');
+      }
+      else {
+        console.log('SSD');
+      }
+    }
+  }
+  // console.log(matches[0][0].replace(/\s/, ''));
   res.send(tests);
 });
 

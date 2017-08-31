@@ -207,9 +207,9 @@ app.get('/get_items/:codigo_item_material', (req, res) => {
 app.get('/create_test/:codigo_item_material', (req, res) => {
   codigo_item_material = req.params.codigo_item_material;
   let tests = new Array();
-  let texto;
+  let texto, maior, valor;
   let itens = JSON.parse(fs.readFileSync('consolidado-' + codigo_item_material + '.json'));
-  let reg = /[13]{0,1}[86421][\s]{0,1}[g][^h][b]{0,1}/;
+  let reg = /\s[13]{0,1}[86421][\s]{0,1}[g][^h][b]{0,1}/g;
   let regExtras = /:| de| do/;
   let matches = [];
   for(let i = 0; i < 40; i++){
@@ -219,21 +219,39 @@ app.get('/create_test/:codigo_item_material', (req, res) => {
     matches[i] = itens[i].descricao_detalhada.toLowerCase().match(reg);
 
     // Filtra se o valor obtido é de um SSD
+    // Remove espaços em branco /[^\s]/g => .join('')
+
+    if(matches[i] != null){
+      maior = 0;
+      for(let obj of matches[i]){
+        console.log(obj);
+        if(texto.search(obj[0] + ' solid state drive' && texto.search(obj[0] + ' ssd') == -1) == -1){
+          valor = obj.toString().match(/[136]{0,1}[12468]/);
+          console.log(valor + ' > ' + maior + ': ');
+          if(valor > maior)
+            maior = obj.toString().match(/[136]{0,1}[12468]/);
+        }
+      }
+      matches[i]['text'] = texto;
+      console.log('Maior: ', maior[0]);
+    }
+
+
     // Mas antes deve-se implementar a rotina caso pegue mais de um valor para percorrer os valores e verificar quais
     // correspondem à memória principal
-    if(matches[i] != null){
-      let temp = matches[i][0] + ' solid state drive';
-      console.log(texto);
-      if(texto.search(temp) == -1){ //texto.search(matches[i][0] + ' ssd') == -1 &&
-        console.log(matches[i][0] + ' :Não é SSD');
-      }
-      else {
-        console.log('SSD');
-      }
-    }
+    // if(matches[i] != null){
+    //   let temp = matches[i][0] + ' solid state drive';
+    //   console.log(texto);
+    //   if(texto.search(temp) == -1){ //texto.search(matches[i][0] + ' ssd') == -1 &&
+    //     console.log(matches[i][0] + ' :Não é SSD');
+    //   }
+    //   else {
+    //     console.log('SSD');
+    //   }
+    // }
   }
   // console.log(matches[0][0].replace(/\s/, ''));
-  res.send(tests);
+  res.send(matches);
 });
 
 app.listen(port, () => console.log(`Listening on port ${port}...`));

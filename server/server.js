@@ -141,6 +141,8 @@ let consolidaItens = () => {
       let jItensLicitacoes = JSON.parse(txtitensLicitacoes);
       let jItensPregoes = JSON.parse(txtitensPregoes);
 
+      let regExtras = /:| de| do/g;
+      let text;
       if(jLicitacoes.length == jItensLicitacoes.length && jItensLicitacoes.length == jItensPregoes.length){
         for(let i = 0; i < jLicitacoes.length; i++){
           if(jLicitacoes[i] != null && jItensLicitacoes[i] != null && jItensPregoes[i] != null){
@@ -153,7 +155,15 @@ let consolidaItens = () => {
               // Verifica se o objeto foi homologado e pega os valores relevantes à tarefa
               if(jItensPregoes[i][itens[i].numero_item_licitacao-1] != null) {
                 if(jItensPregoes[i][itens[i].numero_item_licitacao-1].situacao_item == "homologado"){
-                  itens[i]['descricao_detalhada'] = jItensPregoes[i][itens[i].numero_item_licitacao-1].descricao_detalhada_item;
+                  text = jItensPregoes[i][itens[i].numero_item_licitacao-1].descricao_detalhada_item.toLowerCase();
+                  text = text.replace(regExtras, '');
+                  text = text.replace(/à|ä|á|ã/,'a');
+                  text = text.replace(/è|é|ê/,'e');
+                  text = text.replace(/ì|í/,'i');
+                  text = text.replace(/ò|ó|õ|ô/,'o');
+                  text = text.replace(/ù|ü|ú/,'u');
+                  text = text.replace(/ç/,'c');
+                  itens[i]['descricao_detalhada'] = text;
                   itens[i]['quantidade'] = jItensPregoes[i][itens[i].numero_item_licitacao-1].quantidade_item;
                   itens[i]['valor_unitario'] = jItensPregoes[i][itens[i].numero_item_licitacao-1].menor_lance;
                   itens[i]['valor_total'] = itens[i]['quantidade'] * itens[i]['valor_unitario'];
@@ -209,7 +219,7 @@ app.get('/create_test/:codigo_item_material', (req, res) => {
   let tests = new Array();
   let texto, maior, valor;
   let itens = JSON.parse(fs.readFileSync('consolidado-' + codigo_item_material + '.json'));
-  let reg = /\s[13]{0,1}[86421][\s]{0,1}[g][^h][b]{0,1}/g;
+  let reg = /[136]{0,1}[86421][\s]{0,1}[g][b]{0,1}[,.;\sm]/g;
   let regExtras = /:| de| do/;
   let matches = [];
   for(let i = 0; i < 40; i++){
@@ -220,12 +230,13 @@ app.get('/create_test/:codigo_item_material', (req, res) => {
 
     // Filtra se o valor obtido é de um SSD
     // Remove espaços em branco /[^\s]/g => .join('')
-
+    // 'maximo X gb' 'maximoXgb' 'ate Xgb'
     if(matches[i] != null){
       maior = 0;
       for(let obj of matches[i]){
         console.log(obj);
-        if(texto.search(obj[0] + ' solid state drive' && texto.search(obj[0] + ' ssd') == -1) == -1){
+        if(texto.search(obj[0] + ' solid state drive') == -1 && texto.search(obj[0] + ' ssd') == -1 &&
+          texto.search('ate ' + obj[0]) == -1 && texto.search('maximo ' + obj[0])){
           valor = obj.toString().match(/[136]{0,1}[12468]/);
           console.log(valor + ' > ' + maior + ': ');
           if(valor > maior)

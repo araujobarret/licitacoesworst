@@ -157,12 +157,12 @@ let consolidaItens = () => {
                 if(jItensPregoes[i][itens[i].numero_item_licitacao-1].situacao_item == "homologado"){
                   text = jItensPregoes[i][itens[i].numero_item_licitacao-1].descricao_detalhada_item.toLowerCase();
                   text = text.replace(regExtras, '');
-                  text = text.replace(/à|ä|á|ã/,'a');
-                  text = text.replace(/è|é|ê/,'e');
-                  text = text.replace(/ì|í/,'i');
-                  text = text.replace(/ò|ó|õ|ô/,'o');
-                  text = text.replace(/ù|ü|ú/,'u');
-                  text = text.replace(/ç/,'c');
+                  text = text.replace(/à|ä|á|ã/g,'a');
+                  text = text.replace(/è|é|ê/g,'e');
+                  text = text.replace(/ì|í/g,'i');
+                  text = text.replace(/ò|ó|õ|ô/g,'o');
+                  text = text.replace(/ù|ü|ú/g,'u');
+                  text = text.replace(/ç/g,'c');
                   itens[i]['descricao_detalhada'] = text;
                   itens[i]['quantidade'] = jItensPregoes[i][itens[i].numero_item_licitacao-1].quantidade_item;
                   itens[i]['valor_unitario'] = jItensPregoes[i][itens[i].numero_item_licitacao-1].menor_lance;
@@ -216,6 +216,7 @@ app.get('/get_items/:codigo_item_material', (req, res) => {
 
 app.get('/create_test/:codigo_item_material', (req, res) => {
   codigo_item_material = req.params.codigo_item_material;
+  let arr = new Array();
   let tests = new Array();
   let texto, maior, valor;
   let itens = JSON.parse(fs.readFileSync('consolidado-' + codigo_item_material + '.json'));
@@ -231,10 +232,11 @@ app.get('/create_test/:codigo_item_material', (req, res) => {
     // Filtra se o valor obtido é de um SSD
     // Remove espaços em branco /[^\s]/g => .join('')
     // 'maximo X gb' 'maximoXgb' 'ate Xgb'
+    maior = 0;
     if(matches[i] != null){
-      maior = 0;
       for(let obj of matches[i]){
-        console.log(obj);
+        console.log('ate ' + obj);
+        console.log(texto.search('ate ' + obj));
         if(texto.search(obj[0] + ' solid state drive') == -1 && texto.search(obj[0] + ' ssd') == -1 &&
           texto.search('ate ' + obj[0]) == -1 && texto.search('maximo ' + obj[0])){
           valor = obj.toString().match(/[136]{0,1}[12468]/);
@@ -242,26 +244,15 @@ app.get('/create_test/:codigo_item_material', (req, res) => {
           if(valor > maior)
             maior = obj.toString().match(/[136]{0,1}[12468]/);
         }
+        matches[i]['memoria'] = obj;
       }
       matches[i]['text'] = texto;
-      console.log('Maior: ', maior[0]);
     }
-
-
-    // Mas antes deve-se implementar a rotina caso pegue mais de um valor para percorrer os valores e verificar quais
-    // correspondem à memória principal
-    // if(matches[i] != null){
-    //   let temp = matches[i][0] + ' solid state drive';
-    //   console.log(texto);
-    //   if(texto.search(temp) == -1){ //texto.search(matches[i][0] + ' ssd') == -1 &&
-    //     console.log(matches[i][0] + ' :Não é SSD');
-    //   }
-    //   else {
-    //     console.log('SSD');
-    //   }
-    // }
+    arr[i]['memoria'] = matches[i]['memoria'];
+    arr[i]['text'] = matches[i].texto;
+    arr[i]['maior_memoria'] = maior;
   }
-  // console.log(matches[0][0].replace(/\s/, ''));
+  console.log(matches);
   res.send(matches);
 });
 

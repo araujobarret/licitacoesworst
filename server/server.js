@@ -163,6 +163,12 @@ let consolidaItens = () => {
                   text = text.replace(/ò|ó|õ|ô/g,'o');
                   text = text.replace(/ù|ü|ú/g,'u');
                   text = text.replace(/ç/g,'c');
+                  text = text.replace(/\(trinta e dois\) /g,'');
+                  text = text.replace(/\(dezesseis\) /g,'');
+                  text = text.replace(/\(oito\) /g,'');
+                  text = text.replace(/\(quatro\) /g,'');
+                  text = text.replace(/\(dois\) /g,'');
+                  text = text.replace(/\(um\) /g,'');
                   itens[i]['descricao_detalhada'] = text;
                   itens[i]['quantidade'] = jItensPregoes[i][itens[i].numero_item_licitacao-1].quantidade_item;
                   itens[i]['valor_unitario'] = jItensPregoes[i][itens[i].numero_item_licitacao-1].menor_lance;
@@ -216,44 +222,72 @@ app.get('/get_items/:codigo_item_material', (req, res) => {
 
 app.get('/create_test/:codigo_item_material', (req, res) => {
   codigo_item_material = req.params.codigo_item_material;
-  let arr = new Array();
+  let classificados = [];
+  let nulos = [];
   let tests = new Array();
   let texto, maior, valor;
   let itens = JSON.parse(fs.readFileSync('consolidado-' + codigo_item_material + '.json'));
   let reg = /[136]{0,1}[86421][\s]{0,1}[g][b]{0,1}[,.;\sm]/g;
   let regExtras = /:| de| do/;
   let matches = [];
-  for(let i = 0; i < 40; i++){
-    texto = itens[i].descricao_detalhada.toLowerCase();
-    // console.log(texto.replace(/ de| do|:/, ''));
-    tests.push(itens[i].descricao_detalhada.toLowerCase());
-    matches[i] = itens[i].descricao_detalhada.toLowerCase().match(reg);
+  for(let i = 0; i < itens.length; i++){    
+    if(itens[i] != null){
+      texto = itens[i].descricao_detalhada.toLowerCase();
+      // console.log(texto.replace(/ de| do|:/, ''));
+      tests.push(itens[i].descricao_detalhada.toLowerCase());
+      matches[i] = itens[i].descricao_detalhada.toLowerCase().match(reg);
 
-    // Filtra se o valor obtido é de um SSD
-    // Remove espaços em branco /[^\s]/g => .join('')
-    // 'maximo X gb' 'maximoXgb' 'ate Xgb'
-    maior = 0;
-    if(matches[i] != null){
-      for(let obj of matches[i]){
-        console.log('ate ' + obj);
-        console.log(texto.search('ate ' + obj));
-        if(texto.search(obj[0] + ' solid state drive') == -1 && texto.search(obj[0] + ' ssd') == -1 &&
-          texto.search('ate ' + obj[0]) == -1 && texto.search('maximo ' + obj[0])){
-          valor = obj.toString().match(/[136]{0,1}[12468]/);
-          console.log(valor + ' > ' + maior + ': ');
-          if(valor > maior)
-            maior = obj.toString().match(/[136]{0,1}[12468]/);
-        }
-        matches[i]['memoria'] = obj;
+      // Filtra se o valor obtido é de um SSD
+      // Remove espaços em branco /[^\s]/g => .join('')
+      // 'maximo X gb' 'maximoXgb' 'ate Xgb'    
+      if(matches[i] != null) {
+        maior = 0;
+        for(let obj of matches[i]) {
+          // console.log('');
+          // console.log('Objeto ');        
+          //console.log(texto.search('ate ' + obj));
+          if(texto.search(obj + ' solid state drive') == -1 && texto.search(obj + ' ssd') == -1 &&
+            texto.search('ate ' + obj) == -1 && texto.search('maximo ' + obj)){          
+            valor = parseInt(obj.toString().match(/[136]{0,1}[12468]/g));
+            // console.log(valor);
+            // console.log(valor + ' > ' + maior + ': ');
+            if(valor > maior)            
+              maior = valor;
+          }                        
+          matches[i]['maior_memoria_valida'] = maior;
+        }          
+        matches[i]['text'] = texto;
       }
-      matches[i]['text'] = texto;
+      else{
+        nulos.push(texto);
+      }    
     }
-    arr[i]['memoria'] = matches[i]['memoria'];
-    arr[i]['text'] = matches[i].texto;
-    arr[i]['maior_memoria'] = maior;
+  }  
+  // console.log(matches);
+
+  for(obj of matches){    
+    if(obj != null){
+      let temp = {
+        text: obj.text,
+        maior_memoria_valida: obj.maior_memoria_valida,
+        classe: null
+      };
+      if(temp.maior_memoria_valida <= 2)
+        temp.classe = 'baixo desempenho';
+      else
+        if(temp.maior_memoria_valida >= 4 && temp.maior_memoria_valida <= 6)
+          temp.classe = 'computador comum';
+        else
+          if(temp.maior_memoria_valida >= 8)
+            temp.classe = 'alto desempenho';  
+      classificados.push(temp);
+    }        
   }
-  console.log(matches);
-  res.send(matches);
+  console.log('Nulos');
+  console.log(nulos);
+  console.log('Nulos: ', nulos.length);
+  console.log('Classificados: ', classificados.length);
+  res.send(classificados);    
 });
 
 app.listen(port, () => console.log(`Listening on port ${port}...`));

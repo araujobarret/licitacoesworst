@@ -108,9 +108,6 @@ let getItensPregoes = (licitacoes) => {
     else {
       for(let item of licitacoes){
         arr.push(axios.get(item.pregao_itens));
-        // i++;
-        // if(i >= 10)
-        //   break;
       }
       axios.all(arr).then(axios.spread((...item) => {
         for(let itemData of item){
@@ -225,69 +222,153 @@ app.get('/create_test/:codigo_item_material', (req, res) => {
   let classificados = [];
   let nulos = [];
   let tests = new Array();
-  let texto, maior, valor;
+  let texto, maior, valor, busca;
   let itens = JSON.parse(fs.readFileSync('consolidado-' + codigo_item_material + '.json'));
-  let reg = /[136]{0,1}[86421][\s]{0,1}[g][b]{0,1}[,.;\sm]/g;
+  //let reg = /[136]{0,1}[86421][\s]{0,1}[g][b]{0,1}[,.;\sm]/g;
+  let reg = /[\s.,][136]{0,1}[86421][.]*[0]*[\s]*([g]([b]|[bytes])*|gigabyte(s)*)[,.;\sm]/g;
   let regExtras = /:| de| do/;
   let matches = [];
-  for(let i = 0; i < itens.length; i++){    
+
+  for(let i = 0; i < itens.length; i++){
     if(itens[i] != null){
       texto = itens[i].descricao_detalhada.toLowerCase();
       // console.log(texto.replace(/ de| do|:/, ''));
-      tests.push(itens[i].descricao_detalhada.toLowerCase());
       matches[i] = itens[i].descricao_detalhada.toLowerCase().match(reg);
 
       // Filtra se o valor obtido é de um SSD
       // Remove espaços em branco /[^\s]/g => .join('')
-      // 'maximo X gb' 'maximoXgb' 'ate Xgb'    
+      // 'maximo X gb' 'maximoXgb' 'ate Xgb'
       if(matches[i] != null) {
         maior = 0;
         for(let obj of matches[i]) {
-          // console.log('');
-          // console.log('Objeto ');        
-          //console.log(texto.search('ate ' + obj));
-          if(texto.search(obj + ' solid state drive') == -1 && texto.search(obj + ' ssd') == -1 &&
-            texto.search('ate ' + obj) == -1 && texto.search('maximo ' + obj)){          
+          if(texto.search('ate ' + obj) == -1 && texto.search(obj.trim() + ' solid state drive') == -1 && texto.search(obj.trim() + ' ssd') == -1 &&
+            texto.search('ate ' + obj.trim()) == -1 && texto.search('maximo ' + obj.trim())){
             valor = parseInt(obj.toString().match(/[136]{0,1}[12468]/g));
-            // console.log(valor);
-            // console.log(valor + ' > ' + maior + ': ');
-            if(valor > maior)            
+            if(valor > maior)
               maior = valor;
-          }                        
+          }
           matches[i]['maior_memoria_valida'] = maior;
-        }          
+        }
         matches[i]['text'] = texto;
       }
       else{
         nulos.push(texto);
-      }    
+      }
     }
-  }  
-  // console.log(matches);
+  }
 
-  for(obj of matches){    
+  // Pega os dados do processador
+  let processadores = [];
+  for(let i = 0; i < matches.length; i++){
+    if(matches[i] != null){
+      maior = '';
+      matches[i]['processador'] = [];
+      texto = matches[i].text.toLowerCase();
+      let processador = (texto.match(/i3|i5|i7|((6|4|2|seis|quatro|dois|dual)\s(nucleos|core|cores))|[0-9].[0-9][0]*\s*ghz/g));
+
+      if(processador != null) {
+        matches[i].processador = processador;
+        // Troca as vírgulas por pontos se houverem
+        for(let j = 0; j < matches[i].processador.length; j++) {
+          matches[i].processador[j] = matches[i].processador[j].replace(/,/g, '.');
+
+          // Valida se o processador não é o máximo estabelecido
+          if(texto.search('maximo ' + matches[i].processador[j]) != -1 || texto.search('maximo' + matches[i].processador[j]) != -1)
+            matches[i].processador[j] = null;
+          else{
+            if(maior != ''){
+              // Verifica se foi especificado i3, i5, i7
+              if(maior.search('i3') != -1 || maior.search('i5') != -1 || maior.search('i7') != -1){
+                if(matches[i].processador[j].search('i3') != -1)
+                  maior = matches[i].processador[j];
+                else
+                  if(matches[i].processador[j].search('i5') != -1 && maior.search('i7') != -1)
+                    maior = matches[i].processador[j];
+                  else
+                    if(matches[i].processador[j].search('i7') != -1 && (maior.search('i5') == -1 && maior.search('i3') == -1))
+                      maior = matches[i].processador[j];
+              }
+              else{
+                // Valida de acordo com o número de núcleos
+                if(maior.search('nucleos') != -1 || maior.search('core') != -''){
+                  // Se o atual é da família i3, i5 ou i7, sobrescreva
+                  if(matches[i].processador[j].search('i3') != -1 || matches[i].processador[j].search('i5') != -1 || matches[i].processador[j].search('i7') != -1)
+                    maior = matches[i].processador[j];
+                  else{
+                    // Senão, validar de acordo com o número de núcleos ou clock
+                    if(matches[i].processador[j].search('nucleos') != -1 || matches[i].processador[j].search('core') != -1){
+                      matches[i].processador[j] = matches[i].processador[j].replace(/dois/g, '2');
+                      matches[i].processador[j] = matches[i].processador[j].replace(/dual/g, '2');
+                      matches[i].processador[j] = matches[i].processador[j].replace(/core(s*)/g, 'nucleos');
+                      matches[i].processador[j] = matches[i].processador[j].replace(/quatro/g, '4');
+                      matches[i].processador[j] = matches[i].processador[j].replace(/quad/g, '4');
+                      matches[i].processador[j] = matches[i].processador[j].replace(/seis/g, '6');
+                      matches[i].processador[j] = matches[i].processador[j].replace(/oito/g, '8');
+                      maior = matches[i].processador[j];
+                    }
+                  }
+                }
+                else {
+                  if(maior.search('ghz') != -1){
+                    if(matches[i].processador[j].search('i3') != -1 || matches[i].processador[j].search('i5') != -1 || matches[i].processador[j].search('i7') != -1)
+                      maior = matches[i].processador[j];
+                    else
+                      if(matches[i].processador[j].search('nucleos') != -1 || matches[i].processador[j].search('core') != -1){
+                        matches[i].processador[j] = matches[i].processador[j].replace(/dois/g, '2');
+                        matches[i].processador[j] = matches[i].processador[j].replace(/dual/g, '2');
+                        matches[i].processador[j] = matches[i].processador[j].replace(/core(s*)/g, 'nucleos');
+                        matches[i].processador[j] = matches[i].processador[j].replace(/quatro/g, '4');
+                        matches[i].processador[j] = matches[i].processador[j].replace(/quad/g, '4');
+                        matches[i].processador[j] = matches[i].processador[j].replace(/seis/g, '6');
+                        matches[i].processador[j] = matches[i].processador[j].replace(/oito/g, '8');
+                        maior = matches[i].processador[j];
+                      }
+                      else
+                        if(matches[i].processador[j].search('ghz') != -1){
+                          valor = matches[i].processador.match(/[0-9][.0-9]*/g);
+                          if(valor > maior)
+                            maior = valor;
+                        }
+                  }
+                }
+              }
+            }
+            else
+              maior = matches[i].processador[j];
+
+            matches[i]['processador_valido'] = maior;
+          }
+        }
+
+      }
+    }
+  }
+
+  for(obj of matches){
     if(obj != null){
       let temp = {
         text: obj.text,
-        maior_memoria_valida: obj.maior_memoria_valida,
-        classe: null
+        memoria_valida: obj.maior_memoria_valida,
+        processador_valido: obj.processador_valido,
+        classe: null,
+        processador: obj.processador
       };
-      if(temp.maior_memoria_valida <= 2)
+      if(temp.memoria_valida <= 2)
         temp.classe = 'baixo desempenho';
       else
-        if(temp.maior_memoria_valida >= 4 && temp.maior_memoria_valida <= 6)
+        if(temp.memoria_valida >= 4 && temp.memoria_valida <= 6)
           temp.classe = 'computador comum';
         else
-          if(temp.maior_memoria_valida >= 8)
-            temp.classe = 'alto desempenho';  
+          if(temp.memoria_valida >= 8)
+            temp.classe = 'alto desempenho';
       classificados.push(temp);
-    }        
+    }
   }
-  console.log('Nulos');
-  console.log(nulos);
-  console.log('Nulos: ', nulos.length);
-  console.log('Classificados: ', classificados.length);
-  res.send(classificados);    
+  // console.log('Nulos');
+  // console.log(nulos);
+  // console.log('Nulos: ', nulos.length);
+  // console.log('Classificados: ', classificados.length);
+  res.send(classificados);
 });
 
 app.listen(port, () => console.log(`Listening on port ${port}...`));

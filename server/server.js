@@ -138,7 +138,7 @@ let consolidaItens = () => {
       let jItensLicitacoes = JSON.parse(txtitensLicitacoes);
       let jItensPregoes = JSON.parse(txtitensPregoes);
 
-      let regExtras = /:| de| do/g;
+      let regExtras = /:| de | do /g;
       let text;
       if(jLicitacoes.length == jItensLicitacoes.length && jItensLicitacoes.length == jItensPregoes.length){
         for(let i = 0; i < jLicitacoes.length; i++){
@@ -153,7 +153,7 @@ let consolidaItens = () => {
               if(jItensPregoes[i][itens[i].numero_item_licitacao-1] != null) {
                 if(jItensPregoes[i][itens[i].numero_item_licitacao-1].situacao_item == "homologado"){
                   text = jItensPregoes[i][itens[i].numero_item_licitacao-1].descricao_detalhada_item.toLowerCase();
-                  text = text.replace(regExtras, '');
+                  text = text.replace(regExtras, ' ');
                   text = text.replace(/à|ä|á|ã/g,'a');
                   text = text.replace(/è|é|ê/g,'e');
                   text = text.replace(/ì|í/g,'i');
@@ -168,8 +168,8 @@ let consolidaItens = () => {
                   text = text.replace(/\(um\) /g,'');
                   itens[i]['descricao_detalhada'] = text;
                   itens[i]['quantidade'] = jItensPregoes[i][itens[i].numero_item_licitacao-1].quantidade_item;
+                  // Verifica lançamentos errados, lançar o valor total no lugar do unitário, para isso estabelecemos um limite de até 20mil por computador
                   itens[i]['valor_unitario'] = jItensPregoes[i][itens[i].numero_item_licitacao-1].menor_lance;
-                  itens[i]['valor_total'] = itens[i]['quantidade'] * itens[i]['valor_unitario'];
                 }
               }
             }
@@ -225,19 +225,16 @@ app.get('/create_test/:codigo_item_material', (req, res) => {
   let texto, maior, valor, busca;
   let itens = JSON.parse(fs.readFileSync('consolidado-' + codigo_item_material + '.json'));
   //let reg = /[136]{0,1}[86421][\s]{0,1}[g][b]{0,1}[,.;\sm]/g;
-  let reg = /[\s.,][136]{0,1}[86421][.]*[0]*[\s]*([g]([b]|[bytes])*|gigabyte(s)*)[,.;\sm]/g;
+  let reg = /[\s.,][136]{0,1}[86421]([.][0])*[\s]*([g]([b]|bytes|b1)*|gigabyte(s)*)[,.;\sm]/g;
   let regExtras = /:| de| do/;
   let matches = [];
 
   for(let i = 0; i < itens.length; i++){
     if(itens[i] != null){
       texto = itens[i].descricao_detalhada.toLowerCase();
-      // console.log(texto.replace(/ de| do|:/, ''));
       matches[i] = itens[i].descricao_detalhada.toLowerCase().match(reg);
 
-      // Filtra se o valor obtido é de um SSD
-      // Remove espaços em branco /[^\s]/g => .join('')
-      // 'maximo X gb' 'maximoXgb' 'ate Xgb'
+      // 'maximo X gb' 'maximoXgb' 'ate Xgb' e se pegar valor de SSD
       if(matches[i] != null) {
         maior = 0;
         for(let obj of matches[i]) {
@@ -250,6 +247,9 @@ app.get('/create_test/:codigo_item_material', (req, res) => {
           matches[i]['maior_memoria_valida'] = maior;
         }
         matches[i]['text'] = texto;
+        matches[i]['valor_unitario'] = itens[i].valor_unitario;
+        matches[i]['quantidade'] = itens[i].quantidade;
+        matches[i]['pregao_itens'] = itens[i].pregao_itens;
       }
       else{
         nulos.push(texto);
@@ -264,21 +264,28 @@ app.get('/create_test/:codigo_item_material', (req, res) => {
       maior = '';
       matches[i]['processador'] = [];
       texto = matches[i].text.toLowerCase();
-      let processador = (texto.match(/i3|i5|i7|((6|4|2|seis|quatro|dois|dual)\s(nucleos|core|cores))|[0-9].[0-9][0]*\s*ghz/g));
+      let processador = (texto.match(/xeon|i3|i5|i7|((6|4|2|seis|quatro|quad|dois|dual)\s(nucleos|core|cores))|[0-9].[0-9][0]*\s*ghz/g));
 
       if(processador != null) {
         matches[i].processador = processador;
-        // Troca as vírgulas por pontos se houverem
+        // Troca as vírgulas por pontos se houverem e padroniza nomenclatura
         for(let j = 0; j < matches[i].processador.length; j++) {
           matches[i].processador[j] = matches[i].processador[j].replace(/,/g, '.');
+          matches[i].processador[j] = matches[i].processador[j].replace(/dois/g, '2');
+          matches[i].processador[j] = matches[i].processador[j].replace(/dual/g, '2');
+          matches[i].processador[j] = matches[i].processador[j].replace(/core(s)*/g, 'nucleos');
+          matches[i].processador[j] = matches[i].processador[j].replace(/quatro/g, '4');
+          matches[i].processador[j] = matches[i].processador[j].replace(/quad/g, '4');
+          matches[i].processador[j] = matches[i].processador[j].replace(/seis/g, '6');
+          matches[i].processador[j] = matches[i].processador[j].replace(/oito/g, '8');
 
-          // Valida se o processador não é o máximo estabelecido
+          // Valida se o processador não é um valor máximo estabelecido
           if(texto.search('maximo ' + matches[i].processador[j]) != -1 || texto.search('maximo' + matches[i].processador[j]) != -1)
             matches[i].processador[j] = null;
           else{
             if(maior != ''){
               // Verifica se foi especificado i3, i5, i7
-              if(maior.search('i3') != -1 || maior.search('i5') != -1 || maior.search('i7') != -1){
+              if(maior.search('i3') != -1 || maior.search('i5') != -1 || maior.search('i7') != -1 || maior.search('xeon') != -1){
                 if(matches[i].processador[j].search('i3') != -1)
                   maior = matches[i].processador[j];
                 else
@@ -287,6 +294,9 @@ app.get('/create_test/:codigo_item_material', (req, res) => {
                   else
                     if(matches[i].processador[j].search('i7') != -1 && (maior.search('i5') == -1 && maior.search('i3') == -1))
                       maior = matches[i].processador[j];
+                    else
+                      if(matches[i].processador[j].search('xeon') != -1 && maior.search('i3') == -1 && maior.search('i5') == -1)
+                        maior = matches[i].processador[j];
               }
               else{
                 // Valida de acordo com o número de núcleos
@@ -297,30 +307,16 @@ app.get('/create_test/:codigo_item_material', (req, res) => {
                   else{
                     // Senão, validar de acordo com o número de núcleos ou clock
                     if(matches[i].processador[j].search('nucleos') != -1 || matches[i].processador[j].search('core') != -1){
-                      matches[i].processador[j] = matches[i].processador[j].replace(/dois/g, '2');
-                      matches[i].processador[j] = matches[i].processador[j].replace(/dual/g, '2');
-                      matches[i].processador[j] = matches[i].processador[j].replace(/core(s*)/g, 'nucleos');
-                      matches[i].processador[j] = matches[i].processador[j].replace(/quatro/g, '4');
-                      matches[i].processador[j] = matches[i].processador[j].replace(/quad/g, '4');
-                      matches[i].processador[j] = matches[i].processador[j].replace(/seis/g, '6');
-                      matches[i].processador[j] = matches[i].processador[j].replace(/oito/g, '8');
                       maior = matches[i].processador[j];
                     }
                   }
                 }
                 else {
-                  if(maior.search('ghz') != -1){
+                  if(maior.search('ghz') != -1){matches[i]['valor_unitario'] = itens[i].valor_unitario;
                     if(matches[i].processador[j].search('i3') != -1 || matches[i].processador[j].search('i5') != -1 || matches[i].processador[j].search('i7') != -1)
                       maior = matches[i].processador[j];
                     else
                       if(matches[i].processador[j].search('nucleos') != -1 || matches[i].processador[j].search('core') != -1){
-                        matches[i].processador[j] = matches[i].processador[j].replace(/dois/g, '2');
-                        matches[i].processador[j] = matches[i].processador[j].replace(/dual/g, '2');
-                        matches[i].processador[j] = matches[i].processador[j].replace(/core(s*)/g, 'nucleos');
-                        matches[i].processador[j] = matches[i].processador[j].replace(/quatro/g, '4');
-                        matches[i].processador[j] = matches[i].processador[j].replace(/quad/g, '4');
-                        matches[i].processador[j] = matches[i].processador[j].replace(/seis/g, '6');
-                        matches[i].processador[j] = matches[i].processador[j].replace(/oito/g, '8');
                         maior = matches[i].processador[j];
                       }
                       else
@@ -339,8 +335,39 @@ app.get('/create_test/:codigo_item_material', (req, res) => {
             matches[i]['processador_valido'] = maior;
           }
         }
-
       }
+    }
+  }
+
+  // 'placa video' 'radeon' 'nvidia' 'video + Xgb'
+  let videos = [];
+  for(let i = 0; i < matches.length; i++){
+    maior = null;
+    if(matches[i] != null){
+      texto = matches[i].text.toLowerCase();
+      matches[i]['video'] = [];
+      let video = texto.match(/(placa video)\s*([1-9][g][b]|gddr)|nvidia|radeon/g);
+
+      if(video != null){
+        matches[i].video = video;
+        console.log(video);
+        for(let j = 0; j < matches[i].video.length; j++){
+          console.log(matches[i].video[j]);
+          if(maior != null){
+            if(matches[i].video[j].search('nvidia') != -1 || matches[i].video[j].search('radeon') != -1)
+              maior = matches[i].video[j];
+            else
+              maior = matches[i].video[j];
+          }
+          else {
+            maior = matches[i].video[j];
+          }
+        }
+      }
+      else
+        matches[i].video = null;
+
+      matches[i]['video_valido'] = maior;
     }
   }
 
@@ -348,11 +375,18 @@ app.get('/create_test/:codigo_item_material', (req, res) => {
     if(obj != null){
       let temp = {
         text: obj.text,
+        valor_unitario: obj.valor_unitario,
+        quantidade: obj.quantidade,
+        valor_total: 0,
         memoria_valida: obj.maior_memoria_valida,
         processador_valido: obj.processador_valido,
+        video_valido: obj.video_valido,
         classe: null,
-        processador: obj.processador
+        processador: obj.processador,
+        video: obj.video,
+        pregao_itens: obj.pregao_itens
       };
+
       if(temp.memoria_valida <= 2)
         temp.classe = 'baixo desempenho';
       else

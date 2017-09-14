@@ -221,7 +221,6 @@ app.get('/create_test/:codigo_item_material', (req, res) => {
   codigo_item_material = req.params.codigo_item_material;
   let classificados = [];
   let nulos = [];
-  let tests = new Array();
   let texto, maior, valor, busca;
   let itens = JSON.parse(fs.readFileSync('consolidado-' + codigo_item_material + '.json'));
   //let reg = /[136]{0,1}[86421][\s]{0,1}[g][b]{0,1}[,.;\sm]/g;
@@ -387,21 +386,48 @@ app.get('/create_test/:codigo_item_material', (req, res) => {
         pregao_itens: obj.pregao_itens
       };
 
-      if(temp.memoria_valida <= 2)
-        temp.classe = 'baixo desempenho';
-      else
-        if(temp.memoria_valida >= 4 && temp.memoria_valida <= 6)
-          temp.classe = 'computador comum';
+      if(temp.video)
+        temp.classe = 'altissimo';
+      else{
+        if(temp.processador_valido){
+          valor = temp.processador_valido.match(/[1234][.][0-9][0]*/g);
+          if(valor != null)
+            if(valor < 2.6)
+              temp.classe = 'economico';
+              else
+              if(valor <= 3.0)
+                if(temp.memoria_valida <= 4)
+                  temp.classe = 'comum';
+                else
+                  temp.classe = 'alto';
+              else
+                temp.clase = 'alto';
         else
-          if(temp.memoria_valida >= 8)
-            temp.classe = 'alto desempenho';
-      classificados.push(temp);
+          if(temp.processador_valido.search('i3') != -1|| temp.processador_valido.search('2 nucleos') != -1)
+            if(temp.memoria_valida <= 4)
+              temp.classe = 'comum';
+            else
+              temp.classe = 'alto';
+          else
+            if(temp.processador_valido.search('i5') != -1|| temp.processador_valido.search('4 nucleos') != -1)
+              temp.classe = 'alto';
+            else
+              if(temp.processador_valido.search('i7') != -1|| temp.processador_valido.search('6 nucleos') != -1 || temp.processador_valido.search('xeon') != -1)
+                if(temp.memoria_valida <= 8)
+                  temp.classe = 'alto';
+                else
+                  temp.classe = 'altissimo';
+        }
+      }
+      if(temp.classe)
+        classificados.push(temp);
+      else
+        nulos.push(temp);
     }
   }
-  // console.log('Nulos');
-  // console.log(nulos);
-  // console.log('Nulos: ', nulos.length);
-  // console.log('Classificados: ', classificados.length);
+
+  console.log('Nulos: ', nulos.length);
+  console.log('Classificados: ', classificados.length);
   res.send(classificados);
 });
 

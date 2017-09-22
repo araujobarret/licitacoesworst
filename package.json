@@ -24,6 +24,11 @@
     "lodash": "^4.17.4",
     "mongodb": "^2.2.31",
     "mongoose": "^4.11.7",
-    "request": "^2.81.0"
+    "node-weka": "0.0.8",
+    "request": "^2.81.0",
+    "ya-csv": "^0.10.1"
+  },
+  "devDependencies": {
+    "node-arff": "^1.1.0"
   }
 }

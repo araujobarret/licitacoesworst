@@ -1,5 +1,6 @@
-// Bayesian model from Weka with accuracy of 95.83% with cross-validation with folds:50
+const fs = require('fs');
 
+// Bayesian model from Weka with accuracy of 95.83% with cross-validation with folds:50
 let probabilityModel = [
   { nome: 'economico', probability: 0.1},
   { nome: 'comum', probability: 0.44},
@@ -98,66 +99,139 @@ let bayesianModel = {
   ]
 };
 
-// (-inf-0.5]\\\'\',\'\\\'(0.5-1.5]\\\'\',\'\\\'(1.5-5]\\\'\',\'\\\'(5-12]\\\'\',\'\\\'(12-inf)\\\'\'
-let Classify = (data) => {
-  let maior = 0, index, processador, memoria, video, i, soma = 0;
+let Classify = (data, codigo) => {
+  let maior, processador, memoria, video, i, indice, soma ;
   let produtorio = [];
+  let dataClassificada = [];
 
-  let c = {
-    m: '(1.5-5]',
-    p: 'comum',
-    v: 'n'
-  };
+  for(let obj of data){
+    maior = 0;
+    soma = 0;
+    // (-inf-0.5]\\\'\',\'\\\'(0.5-1.5]\\\'\',\'\\\'(1.5-5]\\\'\',\'\\\'(5-12]\\\'\',\'\\\'(12-inf)\\\'\'
 
-  for(i = 0; i < 4; i++){
-    switch(c.m){
-      case '(-inf-0.5]':
-        memoria = bayesianModel.memoria[0].probability[i].probability;
-        break;
-      case '(0.5-1.5]':
-        memoria = bayesianModel.memoria[1].probability[i].probability;
-        break;
-      case '(1.5-5]':
-        memoria = bayesianModel.memoria[2].probability[i].probability;
-        break;
-      case '(5-12]':
-        memoria = bayesianModel.memoria[3].probability[i].probability;
-        break;
-      case '(12-inf]':
-        memoria = bayesianModel.memoria[4].probability[i].probability;
-        break;
+    if(obj.memoria_valida < 0.5)
+      obj.memoria_valida = '(-inf-0.5]';
+    else
+      if(obj.memoria_valida < 1.5)
+        obj.memoria_valida = '(0.5-1.5]';
+      else
+        if(obj.memoria_valida < 5)
+          obj.memoria_valida = '(1.5-5]';
+        else
+          if(obj.memoria_valida < 12)
+            obj.memoria_valida = '(5-12]';
+          else
+            obj.memoria_valida = '(12-inf)';
+
+    for(i = 0; i < 4; i++){
+      switch(obj.memoria_valida){
+        case '(-inf-0.5]':
+          memoria = bayesianModel.memoria[0].probability[i].probability;
+          break;
+        case '(0.5-1.5]':
+          memoria = bayesianModel.memoria[1].probability[i].probability;
+          break;
+        case '(1.5-5]':
+          memoria = bayesianModel.memoria[2].probability[i].probability;
+          break;
+        case '(5-12]':
+          memoria = bayesianModel.memoria[3].probability[i].probability;
+          break;
+        case '(12-inf)':
+          memoria = bayesianModel.memoria[4].probability[i].probability;
+          break;
+      }
+      switch(obj.processador_normalizado){
+        case 'comum':
+          processador = bayesianModel.processador[0].probability[i].probability;
+          break;
+        case 'alto':
+          processador = bayesianModel.processador[1].probability[i].probability;
+          break;
+        case 'altissimo':
+          processador = bayesianModel.processador[2].probability[i].probability;
+          break;
+      }
+      switch(obj.video_valido){
+        case 'n':
+          video = bayesianModel.video[0].probability[i].probability;
+          break;
+        case 's':
+          video = bayesianModel.video[1].probability[i].probability;
+          break;
+      }
+
+      produtorio[i] = (memoria * processador * video * probabilityModel[i].probability).toFixed(10);
+      soma = parseFloat(produtorio[i]) + parseFloat(soma);
+      console.log(memoria + ' x ' + processador + ' x ' + video + ' x ' + probabilityModel[i].probability +
+        ' = ' + produtorio[i]);
     }
-    switch(c.p){
+
+    for(i = 0; i < 4; i++){
+      if(produtorio[i]/soma > maior){
+        maior = produtorio[i]/soma;
+        indice = i;
+      }
+    }
+
+    let temp = {
+      descricao: obj.text,
+      classe: probabilityModel[indice].nome,
+      processador: obj.processador_normalizado,
+      memoria: obj.memoria_valida,
+      video: obj.video_valido,
+      quantidade: obj.quantidade,
+      valor_unitario: obj.valor_unitario,
+      valor_total: 0
+    };
+
+    dataClassificada.push(temp);
+
+    console.log('Soma', soma);
+    console.log('1', produtorio[0]/soma);
+    console.log('2', produtorio[1]/soma);
+    console.log('3', produtorio[2]/soma);
+    console.log('4', produtorio[3]/soma);
+  }
+
+  for(let i = 0; i < dataClassificada.length; i++){
+    let preco = parseFloat(dataClassificada[i].valor_unitario);
+    switch(dataClassificada[i].classe){
+      case 'economico':
+        if(preco <= 1500)
+          dataClassificada[i].valor_total = (preco * dataClassificada[i].quantidade).toFixed(2);
+        else {
+          dataClassificada[i].valor_unitario = (preco / dataClassificada[i].quantidade).toFixed(2);
+          dataClassificada[i].valor_total = preco.toFixed(2);
+        }
+        break;
       case 'comum':
-        processador = bayesianModel.processador[0].probability[i].probability;
+        if(preco <= 5000)
+          dataClassificada[i].valor_total = (preco * dataClassificada[i].quantidade).toFixed(2);
+        else {
+          dataClassificada[i].valor_unitario = (preco / dataClassificada[i].quantidade).toFixed(2);
+          dataClassificada[i].valor_total = preco.toFixed(2);
+        }
         break;
       case 'alto':
-        processador = bayesianModel.processador[1].probability[i].probability;
+        if(preco <= 15000)
+          dataClassificada[i].valor_total = (preco * dataClassificada[i].quantidade).toFixed(2);
+        else {
+          dataClassificada[i].valor_unitario = (preco / dataClassificada[i].quantidade).toFixed(2);
+          dataClassificada[i].valor_total = preco.toFixed(2);
+        }
         break;
       case 'altissimo':
-        processador = bayesianModel.processador[2].probability[i].probability;
+        if(preco <= 35000)
+          dataClassificada[i].valor_total = (preco * dataClassificada[i].quantidade).toFixed(2);
+        else {
+          dataClassificada[i].valor_unitario = (preco / dataClassificada[i].quantidade).toFixed(2);
+          dataClassificada[i].valor_total = preco.toFixed(2);
+        }
         break;
     }
-    switch(c.v){
-      case 'n':
-        video = bayesianModel.video[0].probability[i].probability;
-        break;
-      case 's':
-        video = bayesianModel.video[1].probability[i].probability;
-        break;
-    }
-
-    //console.log('Model', JSON.stringify(bayesianModel.memoria, null, 2));
-    console.log(memoria + ' x ' + processador + ' x ' + video + ' x ' + probabilityModel[i].probability);
-    produtorio[i] = (memoria * processador * video * probabilityModel[i].probability).toFixed(10);
-    soma = parseFloat(produtorio[i]) + parseFloat(soma);
-    console.log('Produtorio', produtorio[i]);
   }
-  console.log(soma);
-  console.log('1', produtorio[0]);
-  console.log('2', produtorio[1]/soma);
-  console.log('3', produtorio[2]/soma);
-  console.log('4', produtorio[3]/soma);
+  fs.writeFileSync('classificado-' + codigo + '.json', JSON.stringify(dataClassificada));
 };
 
 module.exports = {

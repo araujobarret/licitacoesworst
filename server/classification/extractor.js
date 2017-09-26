@@ -66,9 +66,9 @@ let getItensLicitacoes = (licitacoes) => {
       resolve(newLicitacoes);
     }
     else {
-      for(item of licitacoes)
+      for(item of licitacoes) {
         arr.push(axios.get(item.licitacao_itens));
-
+      }
       axios.all(arr).then(axios.spread((...item) => {
         for(let itemData of item){
           for(let itemLicitacao of itemData.data._embedded.itensLicitacao){
@@ -90,7 +90,7 @@ let getItensPregoes = (licitacoes) => {
     let itens = new Array();
     let arr = new Array();
     if(fs.existsSync('pregoes-itens-data-' + codigo_item_material + '.json')) {
-      itens = JSON.parse(fs.readFileSync('pregoes-itens-data-' + codigo_item_material + '.json'));
+      itens = JSON.parse(fs.readFileSync('pregoes-itens-data-' + codigo_item_material + '.json'));      
       resolve(itens);
     }
     else {
@@ -117,6 +117,7 @@ let consolidaItens = () => {
       let txtlicitacoes = fs.readFileSync('licitacoes-data-' + codigo_item_material + '.json', 'utf8');
       let txtitensLicitacoes = fs.readFileSync('licitacoes-itens-data-' + codigo_item_material + '.json', 'utf8');;
       let txtitensPregoes = fs.readFileSync('pregoes-itens-data-' + codigo_item_material + '.json', 'utf8');
+      let temp;
 
       let jLicitacoes = JSON.parse(txtlicitacoes);
       let jItensLicitacoes = JSON.parse(txtitensLicitacoes);
@@ -152,7 +153,6 @@ let consolidaItens = () => {
                   text = text.replace(/\(um\) /g,'');
                   itens[i]['descricao_detalhada'] = text;
                   itens[i]['quantidade'] = jItensPregoes[i][itens[i].numero_item_licitacao-1].quantidade_item;
-                  // Verifica lançamentos errados, lançar o valor total no lugar do unitário, para isso estabelecemos um limite de até 20mil por computador
                   itens[i]['valor_unitario'] = jItensPregoes[i][itens[i].numero_item_licitacao-1].menor_lance;
                 }
               }
@@ -161,8 +161,11 @@ let consolidaItens = () => {
         }
 
         for(let obj of itens)
-          if(obj.quantidade != null)
+          if(obj.quantidade != null){
+            temp = obj.licitacao_itens.split('/');
+            obj['identificador'] = temp[temp.length -2];
             itensFiltered.push(obj);
+          }
 
         fs.writeFileSync('consolidado-' + codigo_item_material + '.json', JSON.stringify(itensFiltered));
         resolve(itensFiltered);
@@ -190,9 +193,6 @@ let getData = (codigo) => {
       return consolidaItens();
     });
 
-    // .then((data) => {
-    //   res.send(data);
-    // }).catch((e) => console.log(e));
 };
 
 module.exports = {

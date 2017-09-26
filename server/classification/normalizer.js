@@ -5,8 +5,8 @@ let normalizaProcessador = (processador) => {
   let valor;
 
   if(processador != null) {
-    valor = processador.match(/[1234][.][0-9][0]*/g);
-    if(valor != null)
+    valor = processador.match(/[1234][.]*[0-9]*[0]*/g);
+    if(processador.search('ghz') != -1 && valor != null != -1)
       if(valor < 2.6)
         processador_normalizado = 'comum';
       else
@@ -49,7 +49,8 @@ let Normalize = (codigo) => {
         maior = 0;
         for(let obj of matches[i]) {
           if(texto.search('ate ' + obj) == -1 && texto.search(obj.trim() + ' solid state drive') == -1 && texto.search(obj.trim() + ' ssd') == -1 &&
-            texto.search('ate ' + obj.trim()) == -1 && texto.search('maximo ' + obj.trim()) == -1){
+            texto.search('ate ' + obj.trim()) == -1 && texto.search('maximo ' + obj.trim()) == -1 &&
+            texto.search(obj.trim() + 'gddr') == -1 && texto.search(obj.trim() + ' gddr') == -1){
             valor = parseInt(obj.toString().match(/[136]{0,1}[12468]/g));
             if(valor > maior)
               maior = valor;
@@ -60,6 +61,7 @@ let Normalize = (codigo) => {
         if(matches[i]['maior_memoria_valida'] == 0)
           matches[i]['maior_memoria_valida'] = null;
 
+        matches[i]['identificador'] = itens[i].identificador;
         matches[i]['text'] = texto;
         matches[i]['valor_unitario'] = itens[i].valor_unitario;
         matches[i]['quantidade'] = itens[i].quantidade;
@@ -77,9 +79,12 @@ let Normalize = (codigo) => {
     if(matches[i] != null){
       maior = '';
       matches[i]['processador'] = [];
-      texto = matches[i].text.toLowerCase();
-      let processador = (texto.match(/xeon|i3|i5|i7|((6|4|2|seis|quatro|quad|dois|dual)\s(nucleos|core|cores))|[0-9].[0-9][0]*\s*ghz/g));
 
+      texto = matches[i].text.toLowerCase();
+      //let processador = (texto.match(/xeon|i3|i5|i7|((6|4|2|seis|quatro|quad|dois|dual)\s(nucleos|core|cores))|[0-9].[0-9][0-9]*\s*ghz/g));
+      //let processador = (texto.match(/xeon|i3|i5|i7|((6|4|2|seis|quatro|quad|dois|dual)\s(nucleos|core|cores))|[0-9].[0-9]*[0-9]*\s*ghz|(nucleo)\s*(duplo|quadruplo)/g));
+      let processador = (texto.match(/xeon|i3|i5|i7|((6|4|2|seis|quatro|quad|dois|dual)\s(nucleos|core|cores))|[0-9].{0,1}[0-9]{0,1}[0-9]{0,1}\s*ghz/g));
+      console.log(i, processador);
       if(processador != null) {
         matches[i].processador = processador;
         // Troca as vírgulas por pontos se houverem e padroniza nomenclatura
@@ -127,7 +132,7 @@ let Normalize = (codigo) => {
                 }
                 else {
                   if(maior.search('ghz') != -1){
-                    matches[i]['valor_unitario'] = itens[i].valor_unitario;
+                    console.log('Ghz', matches[i].processador[j]);
                     if(matches[i].processador[j].search('i3') != -1 || matches[i].processador[j].search('i5') != -1 || matches[i].processador[j].search('i7') != -1)
                       maior = matches[i].processador[j];
                     else
@@ -161,7 +166,8 @@ let Normalize = (codigo) => {
     if(matches[i] != null){
       texto = matches[i].text.toLowerCase();
       matches[i]['video'] = [];
-      let video = texto.match(/(placa video)\s*([1-9][g][b]|gddr)|nvidia|radeon/g);
+      // let video = texto.match(/(placa video)\s*([1-9][g][b]|gddr)|nvidia|radeon/g);
+      let video = texto.match(/(placa video)\s*(dedicada)*\s*([0]*[1-9]\s*[g][b]|gddr)|nvidia|radeon|([0]*[1-9]\s*[g][b]|gddr)\s*video/g);
 
       if(video != null){
         matches[i].video = video;
@@ -187,6 +193,7 @@ let Normalize = (codigo) => {
   for(obj of matches){
     if(obj != null){
       let temp = {
+        identificador: obj.identificador,
         text: obj.text,
         valor_unitario: obj.valor_unitario,
         quantidade: obj.quantidade,
@@ -207,12 +214,18 @@ let Normalize = (codigo) => {
       if(temp.video) {
         temp.classe = 'altissimo';
         temp.video_valido = 's';
+        temp.classe = 'não classificado';
       }
       else
-        temp.video_valido = 'n';
+        if(temp.processador_valido){
+          temp.classe = 'não classificado';
+          temp.video_valido = 'n';
+        }
+        else
+          temp.classe = null;
 
       temp.processador_normalizado = normalizaProcessador(temp.processador_valido);
-      temp.classe = 'comum';
+
       if(temp.classe)
         classificados.push(temp);
       else
@@ -220,79 +233,8 @@ let Normalize = (codigo) => {
     }
   }
 
-  // Verifica possíveis erros colocando o valor unitario como o total de acordo com as classes
-  // for(let i = 0; i < classificados.length; i++){
-  //   let preco = classificados[i].valor_unitario;
-  //   switch(classificados[i].classe){
-  //     case 'economico':
-  //       if(preco <= 1500)
-  //         classificados[i].valor_total = preco * classificados[i].quantidade;
-  //       else {
-  //         classificados[i].valor_unitario = preco / classificados[i].quantidade;
-  //         classificados[i].valor_total = preco;
-  //       }
-  //       break;
-  //     case 'comum':
-  //       if(preco <= 5000)
-  //         classificados[i].valor_total = preco * classificados[i].quantidade;
-  //       else {
-  //         classificados[i].valor_unitario = preco / classificados[i].quantidade;
-  //         classificados[i].valor_total = preco;
-  //       }
-  //       break;
-  //     case 'alto':
-  //       if(preco <= 15000)
-  //         classificados[i].valor_total = preco * classificados[i].quantidade;
-  //       else {
-  //         classificados[i].valor_unitario = preco / classificados[i].quantidade;
-  //         classificados[i].valor_total = preco;
-  //       }
-  //       break;
-  //     case 'altissimo':
-  //       if(preco <= 35000)
-  //         classificados[i].valor_total = preco * classificados[i].quantidade;
-  //       else {
-  //         classificados[i].valor_unitario = preco / classificados[i].quantidade;
-  //         classificados[i].valor_total = preco;
-  //       }
-  //       break;
-  //   }
-  // }
-
   console.log('Nulos: ', nulos.length);
   console.log('Classificados: ', classificados.length);
-
-  // for(let i = 0; i < classificados.length; i++){
-  //   arffArray.data.push({
-  //     Processador: classificados[i].processador_normalizado,
-  //     Memoria: 0,
-  //     Video: 0,
-  //     Classe: 0
-  //   });
-  //   if(classificados[i].memoria_valida < 0.5)
-  //     arffArray.data[i].Memoria = '\\(-inf-1.5]\\';
-  //   else
-  //     if(classificados[i].memoria_valida < 1.5)
-  //       arffArray.data[i].Memoria = '\\(0.5-1.5]\\';
-  //     else
-  //       if(classificados[i].memoria_valida >= 1.5 && classificados[i].memoria_valida < 5)
-  //         arffArray.data[i].Memoria = '\\(1.5-5]\\';
-  //       else
-  //         if(classificados[i].memoria_valida >= 1.5 && classificados[i].memoria_valida < 5)
-  //           arffArray.data[i].Memoria = '\\(5-12]\\';
-  //         else
-  //           if(classificados[i].memoria_valida >= 12)
-  //             arffArray.data[i].Memoria = '\\(12-inf]\\';
-  //
-  //     if(classificados[i].video_valido != null)
-  //       arffArray.data[i].Video = 1;
-  // }
-  //
-  // let writer = csv.createCsvStreamWriter(fs.createWriteStream('texte.csv'));
-  // writer.writeRecord(['Processador', 'Memoria', 'Video', 'Classe'], {'flags': 'a'});
-  // for(let i = 0; i < classificados.length; i++){
-  //   writer.writeRecord([classificados[i].processador_normalizado, arffArray.data[i].Memoria, arffArray.data[i].Video, 'unknown']);
-  // }
 
   return new Promise((resolve, reject) => {
     resolve(classificados);

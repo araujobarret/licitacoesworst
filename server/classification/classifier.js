@@ -107,7 +107,6 @@ let Classify = (data, codigo) => {
   for(let obj of data){
     maior = 0;
     soma = 0;
-    // (-inf-0.5]\\\'\',\'\\\'(0.5-1.5]\\\'\',\'\\\'(1.5-5]\\\'\',\'\\\'(5-12]\\\'\',\'\\\'(12-inf)\\\'\'
 
     if(obj.memoria_valida < 0.5)
       obj.memoria_valida = '(-inf-0.5]';
@@ -163,8 +162,6 @@ let Classify = (data, codigo) => {
 
       produtorio[i] = (memoria * processador * video * probabilityModel[i].probability).toFixed(10);
       soma = parseFloat(produtorio[i]) + parseFloat(soma);
-      console.log(memoria + ' x ' + processador + ' x ' + video + ' x ' + probabilityModel[i].probability +
-        ' = ' + produtorio[i]);
     }
 
     for(i = 0; i < 4; i++){
@@ -175,9 +172,11 @@ let Classify = (data, codigo) => {
     }
 
     let temp = {
+      identificador: obj.identificador,
       descricao: obj.text,
       classe: probabilityModel[indice].nome,
       processador: obj.processador_normalizado,
+      processadores: obj.processador,
       memoria: obj.memoria_valida,
       video: obj.video_valido,
       quantidade: obj.quantidade,
@@ -186,19 +185,13 @@ let Classify = (data, codigo) => {
     };
 
     dataClassificada.push(temp);
-
-    console.log('Soma', soma);
-    console.log('1', produtorio[0]/soma);
-    console.log('2', produtorio[1]/soma);
-    console.log('3', produtorio[2]/soma);
-    console.log('4', produtorio[3]/soma);
   }
 
   for(let i = 0; i < dataClassificada.length; i++){
     let preco = parseFloat(dataClassificada[i].valor_unitario);
     switch(dataClassificada[i].classe){
       case 'economico':
-        if(preco <= 1500)
+        if(preco <= 6000)
           dataClassificada[i].valor_total = (preco * dataClassificada[i].quantidade).toFixed(2);
         else {
           dataClassificada[i].valor_unitario = (preco / dataClassificada[i].quantidade).toFixed(2);
@@ -206,7 +199,7 @@ let Classify = (data, codigo) => {
         }
         break;
       case 'comum':
-        if(preco <= 5000)
+        if(preco <= 8000)
           dataClassificada[i].valor_total = (preco * dataClassificada[i].quantidade).toFixed(2);
         else {
           dataClassificada[i].valor_unitario = (preco / dataClassificada[i].quantidade).toFixed(2);
@@ -214,7 +207,7 @@ let Classify = (data, codigo) => {
         }
         break;
       case 'alto':
-        if(preco <= 15000)
+        if(preco <= 25000)
           dataClassificada[i].valor_total = (preco * dataClassificada[i].quantidade).toFixed(2);
         else {
           dataClassificada[i].valor_unitario = (preco / dataClassificada[i].quantidade).toFixed(2);
@@ -231,7 +224,10 @@ let Classify = (data, codigo) => {
         break;
     }
   }
+
   fs.writeFileSync('classificado-' + codigo + '.json', JSON.stringify(dataClassificada));
+
+  return dataClassificada;
 };
 
 module.exports = {

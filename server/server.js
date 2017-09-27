@@ -3,7 +3,6 @@ const request = require('request');
 const express = require('express');
 const bodyParser = require('body-parser');
 const fs = require('fs');
-const csv = require('ya-csv');
 const extractor = require('./classification/extractor');
 const normalizer = require('./classification/normalizer');
 const classifier = require('./classification/classifier');

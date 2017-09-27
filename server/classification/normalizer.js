@@ -81,10 +81,7 @@ let Normalize = (codigo) => {
       matches[i]['processador'] = [];
 
       texto = matches[i].text.toLowerCase();
-      //let processador = (texto.match(/xeon|i3|i5|i7|((6|4|2|seis|quatro|quad|dois|dual)\s(nucleos|core|cores))|[0-9].[0-9][0-9]*\s*ghz/g));
-      //let processador = (texto.match(/xeon|i3|i5|i7|((6|4|2|seis|quatro|quad|dois|dual)\s(nucleos|core|cores))|[0-9].[0-9]*[0-9]*\s*ghz|(nucleo)\s*(duplo|quadruplo)/g));
       let processador = (texto.match(/xeon|i3|i5|i7|((6|4|2|seis|quatro|quad|dois|dual)\s(nucleos|core|cores))|[0-9].{0,1}[0-9]{0,1}[0-9]{0,1}\s*ghz/g));
-      console.log(i, processador);
       if(processador != null) {
         matches[i].processador = processador;
         // Troca as vírgulas por pontos se houverem e padroniza nomenclatura

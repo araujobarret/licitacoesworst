@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Summary of results</title>
+  <link rel="stylesheet" href="test.css">
+  <script src="https://d3js.org/d3.v4.min.js"></script>
+</head>
+<body>
+  {{logData data}}
+  <p id="test">R$ {{data.altissimo.minimo_item}}</p>
+  <p id="test">R$ {{data.altissimo.maximo_item}}</p>
+  <p id="test">R$ {{data.altissimo.media_item}}</p>
+  <p id="test">R$ {{data.altissimo.variancia_item}}</p>
+  <p id="test">R$ {{data.altissimo.desvio_padrao_item}}</p>
+  <p id="test">{{data.altissimo.coeficiente_variacao_item}}</p>  
+</body>
+</html>

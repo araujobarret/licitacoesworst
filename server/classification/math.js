@@ -187,10 +187,10 @@ let generateSummary = () => {
 
   for(obj of dados){
     //console.log(`${obj.valor_unitario} > ${summary[obj.classe].media_item * 1.25}`);
-    if(obj.valor_unitario > parseFloat(summary[obj.classe].media_item * 1.2)){
+    if(obj.valor_unitario > parseFloat(summary[obj.classe].media_item * 1.3)){
       itemsFora[obj.classe].dados.push(obj);
       itemsFora[obj.classe].valor_total += parseFloat(obj.valor_total);
-      itemsFora[obj.classe].valor_total_diferenca += obj.valor_total - ((summary[obj.classe].media_item * 1.15) * obj.quantidade);
+      itemsFora[obj.classe].valor_total_diferenca += obj.valor_total - ((summary[obj.classe].media_item * 1.30) * obj.quantidade);
     }
   }
 
